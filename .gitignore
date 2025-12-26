@@ -63,6 +63,8 @@ results/*.keras
 dataset/**/*.csv
 dataset/**/*.parquet
 dataset/**/*.zip
+dataset/**/*.npy
+dataset/processed/
 
 # Logs
 *.log
