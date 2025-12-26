@@ -14,10 +14,10 @@ import json
 import pickle
 import xgboost as xgb
 
-from ..config.training_config import TrainingConfig
-from .trainer import ModelTrainer
-from .architectures import ModelBuilder
-from ..utils import get_project_paths
+from src.config.training_config import TrainingConfig
+from src.models.trainer import ModelTrainer
+from src.models.architectures import ModelBuilder
+from src.utils import get_project_paths
 
 
 class OptunaHyperparameterTuner:
@@ -334,7 +334,7 @@ class OptunaHyperparameterTuner:
         callbacks.append(pruning_callback)
         
         # Model checkpoint (save best model during trial)
-        checkpoint_path = self.results_dir / f"trial_{trial.number}_best.h5"
+        checkpoint_path = self.results_dir / f"trial_{trial.number}_best.keras"
         callbacks.append(
             keras.callbacks.ModelCheckpoint(
                 filepath=str(checkpoint_path),
@@ -585,7 +585,7 @@ class OptunaHyperparameterTuner:
         callbacks = []
         
         # Model checkpoint
-        best_model_path = self.paths['MODELS_DIR'] / 'best_optuna_model.h5'
+        best_model_path = self.paths['MODELS_DIR'] / 'best_optuna_model.keras'
         callbacks.append(
             keras.callbacks.ModelCheckpoint(
                 filepath=str(best_model_path),
@@ -630,7 +630,7 @@ class OptunaHyperparameterTuner:
         
         self.best_model = model
         
-        print(f"\n✓ Best model trained and saved to: {best_model_path}")
+        print(f"\n[SUCCESS] Best model trained and saved to: {best_model_path}")
         print("=" * 80)
         
         return model, history
@@ -682,9 +682,9 @@ class OptunaHyperparameterTuner:
         
         self.best_model = model
         
-        print(f"\n✓ Best XGBoost model trained and saved to: {best_model_path}")
+        print(f"\n[SUCCESS] Best XGBoost model trained and saved to: {best_model_path}")
         if params['use_gpu']:
-            print("✓ GPU acceleration was enabled")
+            print("[INFO] GPU acceleration was enabled")
         print("=" * 80)
         
         return model, history
@@ -711,7 +711,7 @@ class OptunaHyperparameterTuner:
         with open(filepath, 'w') as f:
             json.dump(study_summary, f, indent=2)
         
-        print(f"✓ Study saved to: {filepath}")
+        print(f"[SUCCESS] Study saved to: {filepath}")
         
         return filepath
     

@@ -11,9 +11,9 @@ import pickle
 from typing import Tuple, Optional, Dict, Any
 import joblib
 
-from ..config.training_config import TrainingConfig
-from .architectures import ModelBuilder
-from ..utils import get_project_paths
+from src.config.training_config import TrainingConfig
+from src.models.architectures import ModelBuilder
+from src.utils import get_project_paths
 
 
 class ModelTrainer:
@@ -35,7 +35,7 @@ class ModelTrainer:
         
         # Setup paths
         if self.config.model_save_path is None:
-            self.config.model_save_path = self.paths['MODELS_DIR'] / 'best_model.h5'
+            self.config.model_save_path = self.paths['MODELS_DIR'] / 'best_model.keras'
         
         if self.config.tensorboard_log_dir is None:
             self.config.tensorboard_log_dir = self.paths['RESULTS_DIR'] / 'logs'

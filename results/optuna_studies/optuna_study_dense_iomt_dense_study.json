@@ -1,0 +1,23 @@
+{
+  "study_name": "iomt_dense_study",
+  "n_trials": 3,
+  "best_trial_number": 0,
+  "best_value": 2.905428886413574,
+  "best_params": {
+    "learning_rate": 0.0001329291894316216,
+    "batch_size": 32,
+    "optimizer": "rmsprop",
+    "n_hidden_layers": 4,
+    "hidden_units_layer_0": 384,
+    "hidden_units_layer_1": 32,
+    "hidden_units_layer_2": 512,
+    "hidden_units_layer_3": 448,
+    "dropout_rate": 0.2,
+    "activation": "swish",
+    "epochs": 115,
+    "early_stopping_patience": 16
+  },
+  "direction": "minimize",
+  "metric": "val_loss",
+  "architecture": "dense"
+}

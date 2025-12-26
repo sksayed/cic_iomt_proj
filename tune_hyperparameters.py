@@ -2,10 +2,11 @@
 Hyperparameter tuning script using Optuna with early stopping.
 
 This script:
-1. Loads preprocessed data
-2. Runs Optuna hyperparameter optimization with pruning (early stopping)
-3. Trains the best model found
-4. Saves results and study information
+1. Checks if preprocessed data exists, runs preprocessing if needed
+2. Loads preprocessed data
+3. Runs Optuna hyperparameter optimization with pruning (early stopping)
+4. Trains the best model found
+5. Saves results and study information
 
 Usage:
     python tune_hyperparameters.py --architecture dense --n_trials 50
@@ -15,14 +16,145 @@ import sys
 import argparse
 from pathlib import Path
 import pickle
+import subprocess
 
-# Add src to path
-sys.path.insert(0, str(Path(__file__).parent / 'src'))
+# Add project root to path (for proper package imports)
+project_root = Path(__file__).parent
+sys.path.insert(0, str(project_root))
 
-from config.training_config import TrainingConfig
-from models.hyperparameter_tuner import OptunaHyperparameterTuner
-from models.trainer import ModelTrainer
-from utils import get_project_paths
+# Now import from src package
+from src.config.training_config import TrainingConfig
+from src.models.hyperparameter_tuner import OptunaHyperparameterTuner
+from src.models.trainer import ModelTrainer
+from src.utils import get_project_paths
+
+
+def check_preprocessed_data_exists():
+    """
+    Check if preprocessed data files exist.
+    
+    Returns:
+    --------
+    bool: True if all required files exist, False otherwise
+    """
+    paths = get_project_paths()
+    
+    required_files = [
+        paths['OUTPUT_DIR'] / 'X_train.npy',
+        paths['OUTPUT_DIR'] / 'X_val.npy',
+        paths['OUTPUT_DIR'] / 'X_test.npy',
+        paths['OUTPUT_DIR'] / 'y_train.npy',
+        paths['OUTPUT_DIR'] / 'y_val.npy',
+        paths['OUTPUT_DIR'] / 'y_test.npy',
+        paths['MODELS_DIR'] / 'preprocessing_info.pkl'
+    ]
+    
+    all_exist = all(f.exists() for f in required_files)
+    return all_exist
+
+
+def run_preprocessing_notebook():
+    """
+    Execute the preprocessing notebook to generate required data files.
+    
+    Uses nbconvert to execute the notebook programmatically.
+    """
+    print("=" * 80)
+    print("PREPROCESSING DATA")
+    print("=" * 80)
+    print("Preprocessed data not found. Running preprocessing notebook...")
+    print("This may take several minutes depending on dataset size.")
+    print("=" * 80)
+    
+    # Get notebook path
+    base_dir = Path(__file__).parent
+    notebook_path = base_dir / 'notebooks' / '02_data_preprocessing.ipynb'
+    
+    if not notebook_path.exists():
+        raise FileNotFoundError(
+            f"Preprocessing notebook not found at: {notebook_path}\n"
+            "Please ensure the notebook exists or run preprocessing manually."
+        )
+    
+    # Execute notebook using nbconvert
+    try:
+        import nbformat
+        from nbconvert.preprocessors import ExecutePreprocessor
+        import os
+        
+        print("Reading preprocessing notebook...")
+        # Read notebook
+        with open(notebook_path, 'r', encoding='utf-8') as f:
+            nb = nbformat.read(f, as_version=4)
+        
+        print("Executing preprocessing notebook (this may take a while)...")
+        # Execute notebook
+        ep = ExecutePreprocessor(timeout=7200, kernel_name='python3', allow_errors=False)
+        
+        # Change to base directory for proper path resolution
+        original_dir = os.getcwd()
+        try:
+            os.chdir(base_dir)
+            # Execute all cells
+            ep.preprocess(nb, {'metadata': {'path': str(base_dir)}})
+        except Exception as e:
+            raise RuntimeError(
+                f"Error executing preprocessing notebook: {str(e)}\n"
+                "Please check the notebook for errors or run it manually."
+            )
+        finally:
+            os.chdir(original_dir)
+        
+        print("\n[SUCCESS] Preprocessing notebook executed successfully!")
+        print("=" * 80)
+        
+    except ImportError:
+        # Fallback: use jupyter nbconvert command
+        print("nbformat not available, using jupyter nbconvert command...")
+        print("Executing preprocessing notebook (this may take a while)...")
+        
+        result = subprocess.run(
+            [
+                sys.executable, '-m', 'jupyter', 'nbconvert',
+                '--to', 'notebook',
+                '--execute',
+                '--inplace',
+                '--ExecutePreprocessor.timeout=7200',
+                str(notebook_path)
+            ],
+            cwd=str(base_dir),
+            capture_output=True,
+            text=True
+        )
+        
+        if result.returncode != 0:
+            error_msg = result.stderr if result.stderr else result.stdout
+            raise RuntimeError(
+                f"Failed to execute preprocessing notebook:\n{error_msg}\n"
+                f"Please run the preprocessing notebook manually: {notebook_path}"
+            )
+        
+        print("\n[SUCCESS] Preprocessing notebook executed successfully!")
+        print("=" * 80)
+
+
+def ensure_preprocessed_data():
+    """
+    Ensure preprocessed data exists, running preprocessing if necessary.
+    """
+    if not check_preprocessed_data_exists():
+        print("\n[WARNING] Preprocessed data not found!")
+        run_preprocessing_notebook()
+        
+        # Verify data was created
+        if not check_preprocessed_data_exists():
+            raise RuntimeError(
+                "Preprocessing completed but required files are still missing.\n"
+                "Please check the preprocessing notebook for errors."
+            )
+        print("[SUCCESS] Preprocessed data is now available!")
+    else:
+        print("[INFO] Preprocessed data found, skipping preprocessing step.")
 
 
 def load_preprocessed_data():
@@ -42,7 +174,7 @@ def load_preprocessed_data():
     with open(paths['MODELS_DIR'] / 'preprocessing_info.pkl', 'rb') as f:
         preprocess_info = pickle.load(f)
     
-    print(f"✓ Data loaded:")
+    print(f"[INFO] Data loaded:")
     print(f"  Train: {X_train.shape[0]:,} samples")
     print(f"  Val: {X_val.shape[0]:,} samples")
     print(f"  Test: {X_test.shape[0]:,} samples")
@@ -81,23 +213,23 @@ def sample_data(X_train, y_train, X_val, y_val, sample_size_train=None, sample_s
     
     # Sample training data
     if sample_size_train is not None and sample_size_train < original_train_size:
-        print(f"\n📊 Sampling {sample_size_train:,} training samples from {original_train_size:,}...")
+        print(f"\n[INFO] Sampling {sample_size_train:,} training samples from {original_train_size:,}...")
         rng = np.random.RandomState(random_state)
         indices = rng.choice(original_train_size, size=sample_size_train, replace=False)
         indices = np.sort(indices)  # Sort for better memory access
         X_train = X_train[indices]
         y_train = y_train[indices]
-        print(f"✓ Training set reduced to {X_train.shape[0]:,} samples ({100*X_train.shape[0]/original_train_size:.1f}%)")
+        print(f"[SUCCESS] Training set reduced to {X_train.shape[0]:,} samples ({100*X_train.shape[0]/original_train_size:.1f}%)")
     
     # Sample validation data
     if sample_size_val is not None and sample_size_val < original_val_size:
-        print(f"\n📊 Sampling {sample_size_val:,} validation samples from {original_val_size:,}...")
+        print(f"\n[INFO] Sampling {sample_size_val:,} validation samples from {original_val_size:,}...")
         rng = np.random.RandomState(random_state)
         indices = rng.choice(original_val_size, size=sample_size_val, replace=False)
         indices = np.sort(indices)  # Sort for better memory access
         X_val = X_val[indices]
         y_val = y_val[indices]
-        print(f"✓ Validation set reduced to {X_val.shape[0]:,} samples ({100*X_val.shape[0]/original_val_size:.1f}%)")
+        print(f"[SUCCESS] Validation set reduced to {X_val.shape[0]:,} samples ({100*X_val.shape[0]/original_val_size:.1f}%)")
     
     return X_train, y_train, X_val, y_val
 
@@ -178,6 +310,9 @@ def main():
     print("=" * 80)
     print("CIC IoMT 2024 - Hyperparameter Tuning with Optuna")
     print("=" * 80)
+    
+    # Ensure preprocessed data exists (run preprocessing if needed)
+    ensure_preprocessed_data()
     
     # Load preprocessed data
     (X_train, y_train, X_val, y_val, X_test, y_test), preprocess_info = load_preprocessed_data()

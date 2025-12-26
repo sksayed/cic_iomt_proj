@@ -43,6 +43,7 @@ Thumbs.db
 
 # Model files (can be large)
 models/*.h5
+models/*.keras
 models/*.pkl
 models/*.pt
 models/*.pth
@@ -55,6 +56,7 @@ results/*.png
 results/*.jpg
 results/*.pdf
 results/*.csv
+results/*.keras
 !results/.gitkeep
 
 # Dataset files (too large for git)

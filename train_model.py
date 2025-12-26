@@ -16,12 +16,14 @@ import sys
 from pathlib import Path
 import pickle
 
-# Add src to path
-sys.path.insert(0, str(Path(__file__).parent / 'src'))
+# Add project root to path (for proper package imports)
+project_root = Path(__file__).parent
+sys.path.insert(0, str(project_root))
 
-from config.training_config import TrainingConfig
-from models.trainer import ModelTrainer
-from utils import get_project_paths
+# Now import from src package
+from src.config.training_config import TrainingConfig
+from src.models.trainer import ModelTrainer
+from src.utils import get_project_paths
 
 
 def load_preprocessed_data():
